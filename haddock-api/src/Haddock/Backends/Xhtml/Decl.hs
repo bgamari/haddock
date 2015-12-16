@@ -424,9 +424,9 @@ ppShortClassDecl summary links (ClassDecl { tcdCtxt = lctxt, tcdLName = lname, t
 
                 -- ToDo: add associated type defaults
 
-            [ ppFunSig summary links loc doc names (hsSigWcType typ)
+            [ ppFunSig summary links loc doc names (hsSigType typ)
                        [] splice unicode qual
-              | L _ (TypeSig lnames typ) <- sigs
+              | L _ (ClassOpSig _ lnames typ) <- sigs
               , let doc = lookupAnySubdoc (head names) subdocs
                     names = map unLoc lnames ]
               -- FIXME: is taking just the first name ok? Is it possible that
@@ -485,12 +485,12 @@ ppClassDecl summary links instances fixities loc d subdocs
     minimalBit = case [ s | L _ (MinimalSig _ (L _ s)) <- lsigs ] of
       -- Miminal complete definition = every shown method
       And xs : _ | sort [getName n | L _ (Var (L _ n)) <- xs] ==
-                   sort [getName n | L _ (TypeSig ns _) <- lsigs, L _ n <- ns]
+                   sort [getName n | L _ (ClassOpSig _ ns _) <- lsigs, L _ n <- ns]
         -> noHtml
 
       -- Minimal complete definition = the only shown method
       Var (L _ n) : _ | [getName n] ==
-                        [getName n' | L _ (TypeSig ns _) <- lsigs, L _ n' <- ns]
+                        [getName n' | L _ (ClassOpSig _ ns _) <- lsigs, L _ n' <- ns]
         -> noHtml
 
       -- Minimal complete definition = nothing
