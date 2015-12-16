@@ -199,7 +199,7 @@ instance Parent (TyClDecl Name) where
                               $ (dd_cons . tcdDataDefn) $ d
     | isClassDecl d =
         map (unL . fdLName . unL) (tcdATs d) ++
-        [ unL n | L _ (TypeSig ns _) <- tcdSigs d, n <- ns ]
+        [ unL n | L _ (ClassOpSig _ ns _) <- tcdSigs d, n <- ns ]
     | otherwise = []
 
 
