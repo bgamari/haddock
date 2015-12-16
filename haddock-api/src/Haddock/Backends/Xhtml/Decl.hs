@@ -1,4 +1,5 @@
 {-# LANGUAGE TransformListComp #-}
+{-# LANGUAGE ImplicitParams #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html.Decl
@@ -34,14 +35,18 @@ import qualified Data.Map as Map
 import           Data.Maybe
 import           Text.XHtml hiding     ( name, title, p, quote )
 
+import DynFlags
+import Outputable (ppr)
+
 import GHC
+import GHC.Stack
 import GHC.Exts
 import Name
 import BooleanFormula
 import RdrName ( rdrNameOcc, mkRdrUnqual )
 import PrelNames            ( mkUnboundName )
 
-ppDecl :: Bool -> LinksInfo -> LHsDecl DocName
+ppDecl :: (?loc :: CallStack) => Bool -> LinksInfo -> LHsDecl DocName
        -> DocForDecl DocName -> [DocInstance DocName] -> [(DocName, Fixity)]
        -> [(DocName, DocForDecl DocName)] -> Splice -> Unicode -> Qualification -> Html
 ppDecl summ links (L loc decl) (mbDoc, fnArgsDoc) instances fixities subdocs splice unicode qual = case decl of
@@ -60,14 +65,14 @@ ppDecl summ links (L loc decl) (mbDoc, fnArgsDoc) instances fixities subdocs spl
   _                              -> error "declaration not supported by ppDecl"
 
 
-ppLFunSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
+ppLFunSig :: (?loc :: CallStack) => Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
              [Located DocName] -> LHsType DocName -> [(DocName, Fixity)] ->
              Splice -> Unicode -> Qualification -> Html
 ppLFunSig summary links loc doc lnames lty fixities splice unicode qual =
   ppFunSig summary links loc doc (map unLoc lnames) lty fixities
            splice unicode qual
 
-ppFunSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
+ppFunSig :: (?loc :: CallStack) => Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
             [DocName] -> LHsType DocName -> [(DocName, Fixity)] ->
             Splice -> Unicode -> Qualification -> Html
 ppFunSig summary links loc doc docnames typ fixities splice unicode qual =
@@ -76,7 +81,7 @@ ppFunSig summary links loc doc docnames typ fixities splice unicode qual =
   where
     pp_typ = ppLType unicode qual typ
 
-ppLPatSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
+ppLPatSig :: (?loc :: CallStack) => Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
              Located DocName -> LHsSigType DocName ->
              [(DocName, Fixity)] ->
              Splice -> Unicode -> Qualification -> Html
@@ -93,7 +98,7 @@ ppLPatSig summary links loc (doc, _argDocs) (L _ name) typ fixities splice unico
 
     occname = nameOccName . getName $ name
 
-ppSigLike :: Bool -> LinksInfo -> SrcSpan -> Html -> DocForDecl DocName ->
+ppSigLike :: (?loc :: CallStack) => Bool -> LinksInfo -> SrcSpan -> Html -> DocForDecl DocName ->
              [DocName] -> [(DocName, Fixity)] -> (HsType DocName, Html) ->
              Splice -> Unicode -> Qualification -> Html
 ppSigLike summary links loc leader doc docnames fixities (typ, pp_typ)
@@ -111,7 +116,7 @@ ppSigLike summary links loc leader doc docnames fixities (typ, pp_typ)
       | otherwise = html <+> ppFixities fixities qual
 
 
-ppTypeOrFunSig :: Bool -> LinksInfo -> SrcSpan -> [DocName] -> HsType DocName
+ppTypeOrFunSig :: (?loc :: CallStack) => Bool -> LinksInfo -> SrcSpan -> [DocName] -> HsType DocName
                -> DocForDecl DocName -> (Html, Html, Html)
                -> Splice -> Unicode -> Qualification -> Html
 ppTypeOrFunSig summary links loc docnames typ (doc, argDocs) (pref1, pref2, sep) splice unicode qual
@@ -191,7 +196,7 @@ ppFor _ _ _ _ _ _ _ _ _ = error "ppFor"
 
 
 -- we skip type patterns for now
-ppTySyn :: Bool -> LinksInfo -> [(DocName, Fixity)] -> SrcSpan
+ppTySyn :: (?loc :: CallStack) => Bool -> LinksInfo -> [(DocName, Fixity)] -> SrcSpan
         -> DocForDecl DocName -> TyClDecl DocName
         -> Splice -> Unicode -> Qualification -> Html
 ppTySyn summary links fixities loc doc (SynDecl { tcdLName = L _ name, tcdTyVars = ltyvars
@@ -408,7 +413,7 @@ ppFds fds unicode qual =
         fundep (vars1,vars2) = ppVars vars1 <+> arrow unicode <+> ppVars vars2
         ppVars = hsep . map ((ppDocName qual Prefix True) . unLoc)
 
-ppShortClassDecl :: Bool -> LinksInfo -> TyClDecl DocName -> SrcSpan
+ppShortClassDecl ::  (?loc :: CallStack) => Bool -> LinksInfo -> TyClDecl DocName -> SrcSpan
                  -> [(DocName, DocForDecl DocName)]
                  -> Splice -> Unicode -> Qualification -> Html
 ppShortClassDecl summary links (ClassDecl { tcdCtxt = lctxt, tcdLName = lname, tcdTyVars = tvs
@@ -440,7 +445,7 @@ ppShortClassDecl _ _ _ _ _ _ _ _ = error "declaration type not supported by ppSh
 
 
 
-ppClassDecl :: Bool -> LinksInfo -> [DocInstance DocName] -> [(DocName, Fixity)]
+ppClassDecl :: (?loc :: CallStack) =>  Bool -> LinksInfo -> [DocInstance DocName] -> [(DocName, Fixity)]
             -> SrcSpan -> Documentation DocName
             -> [(DocName, DocForDecl DocName)] -> TyClDecl DocName
             -> Splice -> Unicode -> Qualification -> Html
@@ -449,7 +454,8 @@ ppClassDecl summary links instances fixities loc d subdocs
                         , tcdFDs = lfds, tcdSigs = lsigs, tcdATs = ats })
             splice unicode qual
   | summary = ppShortClassDecl summary links decl loc subdocs splice unicode qual
-  | otherwise = classheader +++ docSection Nothing qual d
+  | otherwise = trace_ppr unsafeGlobalDynFlags lsigs $
+      classheader +++ docSection Nothing qual d
                   +++ minimalBit +++ atBit +++ methodBit +++ instancesBit
   where
     classheader
@@ -510,7 +516,7 @@ ppClassDecl summary links instances fixities loc d subdocs
 ppClassDecl _ _ _ _ _ _ _ _ _ _ _ = error "declaration type not supported by ppShortClassDecl"
 
 
-ppInstances :: [DocInstance DocName] -> DocName -> Unicode -> Qualification -> Html
+ppInstances ::  [DocInstance DocName] -> DocName -> Unicode -> Qualification -> Html
 ppInstances instances baseName unicode qual
   = subInstances qual instName (map instDecl instances)
   where

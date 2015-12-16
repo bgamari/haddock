@@ -27,6 +27,7 @@ import qualified Data.Map as M
 import qualified Data.List as List
 
 import GHC
+import Outputable (OutputableBndr(..))
 import Name
 import RdrName
 import FastString (unpackFS)

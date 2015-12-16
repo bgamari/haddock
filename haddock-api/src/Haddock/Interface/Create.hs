@@ -42,6 +42,7 @@ import GHC
 import HscTypes
 import Name
 import Bag
+import DynFlags
 import RdrName
 import TcRnTypes
 import FastString (concatFS)
@@ -437,7 +438,7 @@ filterDecls = filter (isHandled . unL . fst)
 
 
 -- | Go through all class declarations and filter their sub-declarations
-filterClasses :: [(LHsDecl a, doc)] -> [(LHsDecl a, doc)]
+filterClasses :: O.OutputableBndr a => [(LHsDecl a, doc)] -> [(LHsDecl a, doc)]
 filterClasses decls = [ if isClassD d then (L loc (filterClass d), doc) else x
                       | x@(L loc d, doc) <- decls ]
   where

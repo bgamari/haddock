@@ -1,3 +1,4 @@
+{-# LANGUAGE ImplicitParams #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html.Layout
@@ -43,6 +44,7 @@ import Haddock.Backends.Xhtml.DocMarkup
 import Haddock.Backends.Xhtml.Types
 import Haddock.Backends.Xhtml.Utils
 import Haddock.Types
+import Haddock.GhcUtils
 import Haddock.Utils (makeAnchorId)
 
 import qualified Data.Map as Map
@@ -50,6 +52,8 @@ import Text.XHtml hiding ( name, title, p, quote )
 
 import FastString            ( unpackFS )
 import GHC
+import DynFlags
+import GHC.Stack
 
 --------------------------------------------------------------------------------
 -- * Sections of the document
@@ -199,7 +203,7 @@ declElem = paragraph ! [theclass "src"]
 
 -- a box for top level documented names
 -- it adds a source and wiki link at the right hand side of the box
-topDeclElem :: LinksInfo -> SrcSpan -> Bool -> [DocName] -> Html -> Html
+topDeclElem :: (?loc :: CallStack) =>LinksInfo -> SrcSpan -> Bool -> [DocName] -> Html -> Html
 topDeclElem ((_,_,sourceMap,lineMap), (_,_,maybe_wiki_url)) loc splice names html =
     declElem << (html <+> srcLink <+> wikiLink)
   where srcLink = let nameUrl = Map.lookup origPkg sourceMap
@@ -228,7 +232,9 @@ topDeclElem ((_,_,sourceMap,lineMap), (_,_,maybe_wiki_url)) loc splice names htm
         origPkg = moduleUnitId origMod
 
         -- Name must be documented, otherwise we wouldn't get here
-        Documented n mdl = head names
+        Documented n mdl = case head names of
+                             Undocumented _ -> error $ "undocumented "++pretty unsafeGlobalDynFlags names++" "++prettyCallStack ?loc
+                             other -> other
         -- FIXME: is it ok to simply take the first name?
 
         fname = case loc of
