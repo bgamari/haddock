@@ -1,0 +1,5 @@
+packages:
+    *.cabal
+    haddock-api/*.cabal
+    haddock-library/*.cabal
+    haddock-test/*.cabal
