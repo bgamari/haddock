@@ -86,7 +86,7 @@ binds =
     everything (<|>) (fun `combine` pat `combine` tvar)
   where
     fun term = case cast term of
-        (Just (GHC.FunBind (GHC.L sspan name) _ _ _ _ :: GHC.HsBind GHC.GhcRn)) ->
+        (Just (GHC.FunBind {fun_id = GHC.L sspan name} :: GHC.HsBind GHC.GhcRn)) ->
             pure (sspan, RtkBind name)
         _ -> empty
     pat term = case cast term of
@@ -122,7 +122,7 @@ decls (group, _, _, _) = concatMap ($ group)
         GHC.FamDecl fam -> pure . decl $ GHC.fdLName fam
         GHC.ClassDecl{..} -> [decl tcdLName] ++ concatMap sig tcdSigs
     fun term = case cast term of
-        (Just (GHC.FunBind (GHC.L sspan name) _ _ _ _ :: GHC.HsBind GHC.GhcRn))
+        (Just (GHC.FunBind {fun_id = GHC.L sspan name} :: GHC.HsBind GHC.GhcRn))
             | GHC.isExternalName name -> pure (sspan, RtkDecl name)
         _ -> empty
     con term = case cast term of
