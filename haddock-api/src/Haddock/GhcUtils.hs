@@ -50,6 +50,7 @@ import qualified GHC.Data.StringBuffer             as S
 
 import           Data.ByteString ( ByteString )
 import qualified Data.ByteString          as BS
+import qualified Data.ByteString.Unsafe   as BS
 import qualified Data.ByteString.Internal as BS
 
 import GHC.HsToCore.Docs
@@ -467,16 +468,16 @@ setOutputDir  f = setObjectDir f . setHiDir f . setHieDir f . setStubDir f
 --
 -- /O(n)/ (but optimized into a @memcpy@ by @bytestring@ under the hood)
 stringBufferFromByteString :: ByteString -> StringBuffer
-stringBufferFromByteString bs =
-  let BS.PS fp off len = bs <> BS.pack [0,0,0]
-  in S.StringBuffer { S.buf = fp, S.len = len - 3, S.cur = off }
+stringBufferFromByteString = S.byteStringToStringBuffer
 
 -- | Take the first @n@ /bytes/ of the 'StringBuffer' and put them in a
 -- 'ByteString'.
 --
 -- /O(1)/
 takeStringBuffer :: Int -> StringBuffer -> ByteString
-takeStringBuffer !n !(S.StringBuffer fp _ cur) = BS.PS fp cur n
+takeStringBuffer !n sb =
+  BS.inlinePerformIO $ S.withStringBufferContents sb $ \(p, len) ->
+    BS.unsafePackCStringLen (p, min n len)
 
 -- | Return the prefix of the first 'StringBuffer' that /isn't/ in the second
 -- 'StringBuffer'. **The behavior is undefined if the 'StringBuffers' use
